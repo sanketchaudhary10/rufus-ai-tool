@@ -2,38 +2,44 @@
 
 ## Project Overview
 Rufus is an AI web-scraping agent designed to dynamically extract data from websites based on user-defined prompts and output it in structured formats for RAG (Retrieval-Augmented Generation) pipelines.
-...
 
 **Core Features**:
-- Dynamic content extraction based on user-defined prompts.
-- Handling of dynamic web content such as JavaScript-rendered pages.
-- Ability to follow links and scrape nested pages.
-- Output formats (JSON or plain text).
+- Asynchronous web scraping to handle multiple tasks concurrently.
+- Dynamic content extraction based on the user’s prompt.
+- Supports crawling nested pages for deep scraping.
+- Synthesizes output into structured formats like JSON and plain text, ready for use in RAG pipelines.
 
 ### Steps to Use Rufus
 
 **1. Installation**:
 Install Rufus and its dependencies using the following commands:
 
+## Cloning the Repository
 ```bash
 git clone https://github.com/yourusername/rufus-ai-agent.git
 cd rufus-ai-agent
+```
+
+## Installing the required libraries
+```bash
 pip install -r requirements.txt
 playwright install
+```
 
-## Cloning the Repository
-git clone https://github.com/yourusername/rufus-ai-agent.git
-cd rufus-ai-agent
-
+## Creating an Environment Variables file
+```bash
 ## Create a .env file in the root directory to store your API key:
 touch .env
 
 ## Add the following line to your .env file:
 RUFUS_API_KEY=your_api_key_here
+```
 
 ## Usage
 
-Here's a quick example to demonstrate how to use Rufus to scrape a website:
+Here's an example to demonstrate how to use Rufus to scrape a website:
+
+## Below is the main.py file that can be used to run the Rufus AI Agent
 
 ```python
 from rufus_api import RufusAPI
@@ -56,20 +62,17 @@ async def main():
     print(documents)
 
 asyncio.run(main())
-
+```
 
 ## Integrating Rufus into a RAG Pipeline
 
-Rufus can be seamlessly integrated into a Retrieval-Augmented Generation (RAG) pipeline to enhance information retrieval and content generation. Here's how to do it:
-
-### Overview of RAG
-A RAG pipeline combines the strengths of retrieval systems and generative models, allowing you to retrieve relevant documents and generate context-aware responses.
+Rufus can easily integrate into any RAG pipeline by feeding the scraped data directly into the system. Steps on implementing Rufus into an example RAG Model System:
 
 ### Example Integration
 Below is an example of how to use Rufus within a RAG system:
 
 ```python
-from your_llm_model import RAGModel  # Hypothetical LLM model in your RAG pipeline
+from your_llm_model import RAGModel  # Example LLM model for your RAG pipeline
 from rufus_api import RufusAPI
 import asyncio
 
@@ -85,3 +88,40 @@ async def integrate_rufus_into_rag():
     rag_model.add_documents(documents.content)  # Add scraped content to RAG model
 
 asyncio.run(integrate_rufus_into_rag())
+```
+
+## Some of the Example Use Cases that Rufus can solve (Scrape):
+- Chatbot FAQs: Scrape FAQ data from websites and feed it into chatbots.
+- Price Comparisons: Scrape product prices and features for financial comparison models.
+- Application Data: Extract application processes from university or job websites.
+
+## Error Handling
+Rufus implements basic error handling for cases where the web page is inaccessible, where rate-limiting is triggered, or where the content format changes unexpectedly.
+
+```python
+try:
+    documents = await client.scrape("https://broken-link.com", instructions)
+except Exception as e:
+    print(f"An error occurred: {e}")
+```
+
+## API Reference
+## RufusClient Class:
+```python
+class RufusClient:
+    def __init__(self, api_key: str):
+        # Initializes RufusClient with API key
+
+    async def scrape(self, url: str, instructions: str, output_format: str = "json"):
+        # Scrapes data from the given URL based on the instructions
+```
+
+## RufusAPI Class:
+```python
+class RufusAPI:
+    def __init__(self, api_key: str):
+        # Initializes the RufusAPI
+
+    async def scrape(self, url: str, instructions: str, output_format: str = "json"):
+        # Scrape data asynchronously from the provided URL
+```

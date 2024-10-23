@@ -9,6 +9,14 @@ Rufus is an AI web-scraping agent designed to dynamically extract data from webs
 - Supports crawling nested pages for deep scraping.
 - Synthesizes output into structured formats like JSON and plain text, ready for use in RAG pipelines.
 
+## How Rufus Works
+
+1. **Initialize Rufus API**: The `RufusAPI` class is initialized with an optional API key for handling authenticated requests.
+2. **Analyze User Instructions**: Based on the provided prompt, Rufus analyzes the instructions using an NLP model (via spaCy) to extract keywords.
+3. **Scraping Content**: Rufus scrapes the website by visiting the URL extracting content, and following nested links if required.
+4. **Process and Synthesize Data**: Extracted content is processed and organized into a structured document.
+5. **Output for RAG Pipelines**: The data is ready to be used in RAG pipelines making it easier to integrate into LLM or chatbot systems.
+
 ### Steps to Use Rufus
 
 **1. Installation**:

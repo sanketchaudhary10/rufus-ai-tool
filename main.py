@@ -14,11 +14,11 @@ api_key = os.getenv('RUFUS_API_KEY')
 client = RufusAPI(api_key=api_key)
 
 # Instructions for scraping
-instructions = "Find Learn how to apply for Graduate Students"
+instructions = "Find price of Dan Brown Books on Amazon"
 
 # Scrape data from the URL asynchronously
 async def main():
-    documents = await client.scrape("https://admissions.indiana.edu/apply/index.html", instructions)
+    documents = await client.scrape("https://www.amazon.com/s?k=dan+brown&crid=3MMLLV3NUI1ZH&sprefix=dan+brown%2Caps%2C133&ref=nb_sb_noss_1", instructions)
     print(documents)
 
 # Ensure to run this in an async context

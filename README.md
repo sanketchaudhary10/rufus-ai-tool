@@ -16,7 +16,7 @@ Install Rufus and its dependencies using the following commands:
 
 ## Cloning the Repository
 ```bash
-git clone https://github.com/yourusername/rufus-ai-tool.git
+git clone https://github.com/sanketchaudhary10/rufus-ai-tool.git
 cd rufus-ai-tool
 ```
 

@@ -5,7 +5,6 @@ from playwright.async_api import async_playwright
 from pydantic import BaseModel
 from utils.nlp_utils import load_nlp_model
 from utils.scraping_utils import parse_html
-from transformers import pipeline
 import os, re, json, csv, random
 from urllib.parse import urljoin
 from typing import List, Optional
@@ -13,7 +12,8 @@ import requests
 
 class ScrapedDocument(BaseModel):
     url: str
-    data: List[str]
+    title: str
+    content: List[str]  # List of extracted text content
 
 class RufusClient:
     def __init__(self):
@@ -22,7 +22,7 @@ class RufusClient:
 
     def _analyze_prompt(self, instructions):
         """
-        Analyze the user's instructions using spaCy to extract important keywords.
+        Analyze the user's instructions using spaCy to extract important keywords dynamically.
         """
         doc = self.nlp(instructions)
         keywords = [token.text for token in doc if token.pos_ in ['NOUN', 'PROPN', 'VERB']]
@@ -31,7 +31,8 @@ class RufusClient:
     async def scrape(self, url, instructions, output_format="json"):
         """
         Main method to scrape data from any website, dynamically extracting content based on the user's prompt.
-        Optionally, it can follow links to nested pages using async.
+        Optionally, it can follow links to nested pages using async and scrape relevant content based on extracted keywords.
+        Synthesizes content into a structured document format ready for RAG systems.
         """
         try:
             async with async_playwright() as p:
@@ -58,6 +59,9 @@ class RufusClient:
                 query = self._analyze_prompt(instructions)
                 print(f"Extracting based on query: {query}")
 
+                # Extract the page's title
+                page_title = await page.title()
+
                 # Process the content dynamically based on the prompt keywords
                 extracted_data = self._process_content(soup, query)
 
@@ -67,14 +71,10 @@ class RufusClient:
 
                 await browser.close()
 
-                # Create a structured document
-                document = ScrapedDocument(url=url, data=extracted_data)
+                # Create a structured document for RAG systems
+                document = self._synthesize_document(url, page_title, extracted_data, output_format)
 
-                # Output format (JSON or CSV)
-                if output_format == "json":
-                    return self._save_json(document)
-                elif output_format == "csv":
-                    return self._convert_to_csv(document)
+                return document
 
         except Exception as e:
             print(f"Error fetching {url}: {e}")
@@ -83,7 +83,7 @@ class RufusClient:
     def _process_content(self, soup, query):
         """
         Dynamically extract content from a webpage based on keywords from the query.
-        Now includes tables and forms.
+        This function selectively extracts content based on the dynamically extracted keywords.
         """
         data = []
         
@@ -99,7 +99,7 @@ class RufusClient:
 
     async def _follow_links(self, soup, base_url, query, max_links=5):
         """
-        Follow and scrape links to nested pages, if any, asynchronously.
+        Follow and scrape links to nested pages, if any, asynchronously. This will dynamically extract relevant data based on query keywords from nested pages.
         """
         nested_data = []
         links = soup.find_all('a', href=True)
@@ -131,37 +131,59 @@ class RufusClient:
         
         return nested_data
 
-    def _save_json(self, document):
+    def _synthesize_document(self, url, title, content, output_format="json"):
         """
-        Save the scraped data as a JSON file in the project directory, ensuring a valid filename.
+        Synthesize the extracted content into a structured document format (e.g., JSON or plain text),
+        ready for use in RAG systems.
+        """
+        if output_format == "json":
+            return self._save_json(ScrapedDocument(url=url, title=title, content=content))
+        elif output_format == "text":
+            return self._save_plain_text(ScrapedDocument(url=url, title=title, content=content))
+        else:
+            raise ValueError(f"Unsupported output format: {output_format}")
+
+    def _save_json(self, document: ScrapedDocument):
+        """
+        Save the synthesized document in JSON format for use in RAG systems.
         """
         output_dir = "extracted_data"
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
 
-        # Extract domain name and path from URL to create a cleaner filename
-        url = document.url
-        sanitized_url = re.sub(r'https?://', '', url)
+        # Generate a sanitized filename from the URL
+        sanitized_url = re.sub(r'https?://', '', document.url)
         sanitized_url = re.sub(r'[^\w\-]', '_', sanitized_url)
 
         json_filename = f"scraped_data_{sanitized_url}.json"
         json_filepath = os.path.join(output_dir, json_filename)
         
+        # Save the data as JSON
         with open(json_filepath, 'w') as json_file:
             json.dump(document.dict(), json_file, indent=4)
         
         return f"Data saved to {json_filepath}"
 
-    def _convert_to_csv(self, document):
+    def _save_plain_text(self, document: ScrapedDocument):
         """
-        Convert the scraped data to a CSV file and save it.
+        Save the synthesized document in plain text format, organizing content in a readable manner.
         """
-        csv_file = f"scraped_data_{document.url.replace('https://', '').replace('/', '_')}.csv"
+        output_dir = "extracted_data"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        # Generate a sanitized filename from the URL
+        sanitized_url = re.sub(r'https?://', '', document.url)
+        sanitized_url = re.sub(r'[^\w\-]', '_', sanitized_url)
+
+        text_filename = f"scraped_data_{sanitized_url}.txt"
+        text_filepath = os.path.join(output_dir, text_filename)
         
-        with open(csv_file, mode='w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(["url", "data"])
-            for row in document.data:
-                writer.writerow([document.url, row])
+        # Save the data as plain text
+        with open(text_filepath, 'w') as text_file:
+            text_file.write(f"URL: {document.url}\n")
+            text_file.write(f"Title: {document.title}\n")
+            text_file.write("Content:\n")
+            text_file.write("\n".join(document.content))
         
-        return f"Data saved to {csv_file}"
+        return f"Data saved to {text_filepath}"

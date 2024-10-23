@@ -1,19 +1,27 @@
 from rufus_client import RufusClient
+from rufus_api import RufusAPI
+import os
+from dotenv import load_dotenv
 import asyncio
 
+# Load environment variables from the .env file
+load_dotenv()
+
+# Access the environment variables
+api_key = os.getenv('RUFUS_API_KEY')
+
+# Initialize the Rufus API with the key
+client = RufusAPI(api_key=api_key)
+
+# Instructions for scraping
+instructions = "Find Learn how to apply for Graduate Students"
+
+# Scrape data from the URL asynchronously
 async def main():
-    # Create a RufusClient instance
-    client = RufusClient()
+    documents = await client.scrape("https://admissions.indiana.edu/apply/index.html", instructions)
+    print(documents)
 
-    # Define a real test URL and dynamic instructions
-    url = "https://admissions.indiana.edu/apply/learn-more-faq.html"
-    instructions = "Find the FAQs related to admission"
-
-    # Scrape the website and save the data as a JSON file
-    output = await client.scrape(url, instructions, output_format="json")
-    print(output)
-
+# Ensure to run this in an async context
 if __name__ == "__main__":
     asyncio.run(main())
-
 

@@ -13,12 +13,12 @@ import requests
 class ScrapedDocument(BaseModel):
     url: str
     title: str
-    content: List[str]  # List of extracted text content
+    content: List[str]  
 
 class RufusClient:
     def __init__(self):
         self.nlp = load_nlp_model()
-        self.rate_limit = 5  # Time in seconds to wait between requests to avoid rate-limiting
+        self.rate_limit = 5  # Time to wait between requests to avoid rate-limiting
 
     def _analyze_prompt(self, instructions):
         """
@@ -31,8 +31,6 @@ class RufusClient:
     async def scrape(self, url, instructions, output_format="json"):
         """
         Main method to scrape data from any website, dynamically extracting content based on the user's prompt.
-        Optionally, it can follow links to nested pages using async and scrape relevant content based on extracted keywords.
-        Synthesizes content into a structured document format ready for RAG systems.
         """
         try:
             async with async_playwright() as p:
@@ -71,7 +69,7 @@ class RufusClient:
 
                 await browser.close()
 
-                # Create a structured document for RAG systems
+                # Create a structured document 
                 document = self._synthesize_document(url, page_title, extracted_data, output_format)
 
                 return document
@@ -83,15 +81,14 @@ class RufusClient:
     def _process_content(self, soup, query):
         """
         Dynamically extract content from a webpage based on keywords from the query.
-        This function selectively extracts content based on the dynamically extracted keywords.
         """
         data = []
         
-        # Iterate over common HTML elements that may contain relevant content
+        # Iterate over common HTML elements
         for tag in soup.find_all(['p', 'h1', 'h2', 'h3', 'span', 'div', 'li', 'table', 'td', 'form', 'input']):
             text = tag.get_text().strip().lower()
             
-            # Match any relevant keyword from the user query to dynamically select content
+            # Match any relevant keyword from the user query to select content
             if any(keyword.lower() in text for keyword in query):
                 data.append(tag.get_text().strip())
         
@@ -99,7 +96,7 @@ class RufusClient:
 
     async def _follow_links(self, soup, base_url, query, max_links=5):
         """
-        Follow and scrape links to nested pages, if any, asynchronously. This will dynamically extract relevant data based on query keywords from nested pages.
+        Follow and scrape links to nested pages
         """
         nested_data = []
         links = soup.find_all('a', href=True)
@@ -133,8 +130,7 @@ class RufusClient:
 
     def _synthesize_document(self, url, title, content, output_format="json"):
         """
-        Synthesize the extracted content into a structured document format (e.g., JSON or plain text),
-        ready for use in RAG systems.
+        Synthesize the extracted content into a structured document format
         """
         if output_format == "json":
             return self._save_json(ScrapedDocument(url=url, title=title, content=content))
@@ -166,7 +162,7 @@ class RufusClient:
 
     def _save_plain_text(self, document: ScrapedDocument):
         """
-        Save the synthesized document in plain text format, organizing content in a readable manner.
+        Save the synthesized document in plain text format
         """
         output_dir = "extracted_data"
         if not os.path.exists(output_dir):

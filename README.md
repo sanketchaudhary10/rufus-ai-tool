@@ -1,4 +1,4 @@
-# Rufus AI Agent - A Web Scraping AI Agent
+# Rufus - A Web Scraping AI Agent
 
 ## Project Overview
 Rufus is an AI web-scraping agent designed to dynamically extract data from websites based on user-defined prompts and output it in structured formats for RAG (Retrieval-Augmented Generation) pipelines.

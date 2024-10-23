@@ -2,13 +2,14 @@ import spacy
 from bs4 import BeautifulSoup
 from playwright.sync_api import sync_playwright
 from pydantic import BaseModel
-from typing import List
-import csv
-import json
-import os
-import re
+from utils.nlp_utils import load_nlp_model
+from utils.scraping_utils import parse_html
+from transformers import pipeline
+import os, re, json, csv, time, random, requests
 from urllib.parse import urljoin
-import requests
+from typing import List
+
+
 
 class ScrapedDocument(BaseModel):
     url: str
@@ -16,7 +17,7 @@ class ScrapedDocument(BaseModel):
 
 class RufusClient:
     def __init__(self):
-        self.nlp = spacy.load("en_core_web_sm")
+        self.nlp = load_nlp_model()
 
     def _analyze_prompt(self, instructions):
         """
@@ -45,21 +46,21 @@ class RufusClient:
                 # Go to the page
                 page.goto(url)
                 
-                # Wait for the page to load fully
-                page.wait_for_selector('body')
+                # Wait for the content to load
+                page.wait_for_timeout(5000)
 
-                # Extract content after it's loaded
+                # Extract the page's content
                 content = page.content()
-                soup = BeautifulSoup(content, 'html.parser')
+                soup = parse_html(content)
 
-                # Analyze the prompt to extract keywords
+                # Analyze the user's prompt to extract keywords
                 query = self._analyze_prompt(instructions)
                 print(f"Extracting based on query: {query}")
 
-                # Process the content and extract data
+                # Process the content dynamically based on the prompt keywords
                 extracted_data = self._process_content(soup, query)
 
-                # Optionally follow links and extract more data from nested pages
+                # Optionally, follow links to nested pages
                 nested_data = self._follow_links(soup, url, query)
                 extracted_data.extend(nested_data)
 
@@ -68,7 +69,7 @@ class RufusClient:
                 # Create a structured document
                 document = ScrapedDocument(url=url, data=extracted_data)
 
-                # Output format options (JSON or CSV)
+                # Output format (JSON or CSV)
                 if output_format == "json":
                     return self._save_json(document)
                 elif output_format == "csv":
@@ -79,7 +80,6 @@ class RufusClient:
             return None
 
 
-
     def _process_content(self, soup, query):
         """
         Dynamically extract content from a webpage based on keywords from the query.
@@ -88,42 +88,54 @@ class RufusClient:
         data = []
         
         # Iterate over common HTML elements that may contain relevant content
-        for tag in soup.find_all(['p', 'h1', 'h2', 'h3', 'table', 'ul', 'ol']):
+        for tag in soup.find_all(['p', 'h1', 'h2', 'h3', 'span', 'div', 'li', 'table', 'td']):
             text = tag.get_text().strip().lower()
             
-            # Compare each tag's text with keywords from the query
-            for keyword in query:
-                if keyword.lower() in text:
-                    data.append(tag.get_text().strip())
+            # Match any relevant keyword from the user query to dynamically select content
+            if any(keyword.lower() in text for keyword in query):
+                data.append(tag.get_text().strip())
         
         return data
 
 
-    def _follow_links(self, soup, base_url, query):
+    
+
+    def _follow_links(self, soup, base_url, query, max_links=5):
         """
         Follow and scrape links to nested pages, if any. This allows the agent to gather more content from multi-page websites.
+        Add rate limiting and limit the number of links followed.
         """
         nested_data = []
         links = soup.find_all('a', href=True)
+        followed_links = 0
 
         for link in links:
+            # Only follow a limited number of links to avoid overwhelming the server
+            if followed_links >= max_links:
+                break
+            
             # Resolve relative links
             nested_url = urljoin(base_url, link['href'])
 
-            # Fetch the nested page content
+            # Fetch the nested page content with error handling and random delays
             try:
+                # Introduce a delay between requests to avoid rate-limiting
+                time.sleep(random.uniform(3, 6))
+
                 response = requests.get(nested_url)
                 response.raise_for_status()
                 nested_soup = BeautifulSoup(response.text, 'html.parser')
                 
-                # Process content from the nested page (recurse)
+                # Process content from the nested page
                 nested_data.append(f"Link: {nested_url}")
-                nested_data.extend(self._process_content(nested_soup, query))  # Reuse the content extraction logic
+                nested_data.extend(self._process_content(nested_soup, query))
+                followed_links += 1
 
             except requests.RequestException as e:
                 print(f"Failed to fetch nested page: {nested_url}. Error: {e}")
         
         return nested_data
+
 
 
     def _save_json(self, document):
